@@ -67,6 +67,6 @@ TEST_F(ReadTests, GB_read) {
     EXPECT_EQ(GB_read(&gb, address), 0x10);
 
     address = -0x0001; // Out of bounds should get caught and wrapped
-    EXPECT_EQ(GB_read(&gb, address), 0x10) << "Address: " << address;
+    EXPECT_EQ(GB_read(&gb, address), 0x10);
 }
 

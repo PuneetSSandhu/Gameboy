@@ -25,7 +25,6 @@ add_library(${THIS} STATIC ${Sources} ${Headers})
 
 add_subdirectory(test)
 
-
 # --- auto-ignore build directory
 if(NOT EXISTS ${PROJECT_BINARY_DIR}/.gitignore)
   file(WRITE ${PROJECT_BINARY_DIR}/.gitignore "*")

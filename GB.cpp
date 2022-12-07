@@ -4,6 +4,7 @@
 
 void GB_init(GB *gb)
 {
+    // Initialize the registers
     gb->AF.word = 0x01B0;
     gb->BC.word = 0x0013;
     gb->DE.word = 0x00D8;
@@ -11,8 +12,8 @@ void GB_init(GB *gb)
     gb->sp.word = 0xFFFE;
     gb->pc = 0x0100;
 
+    // Initialize the memory
     memset(gb->memory, 0, 0x10000);
-
     gb->memory[0xFF05] = 0x00;
     gb->memory[0xFF06] = 0x00;
     gb->memory[0xFF07] = 0x00;
@@ -44,7 +45,87 @@ void GB_init(GB *gb)
     gb->memory[0xFF4A] = 0x00;
     gb->memory[0xFF4B] = 0x00;
     gb->memory[0xFFFF] = 0x00;
+
+    // Initialize the game struct
+    gb->game = new Game;
+    gb->game->MBC1 = false;
+    gb->game->MBC2 = false;
+    gb->game->curRomBank = 1;
 }
 
+// TODO: Implement region locking
+//  0000-3FFF 16KB ROM Bank 00 (in cartridge, fixed at bank 00)
+//  4000-7FFF 16KB ROM Bank 01..NN (in cartridge, switchable bank number)
+//  8000-9FFF 8KB Video RAM (VRAM) (switchable bank 0-1 in CGB Mode)
+//  A000-BFFF 8KB External RAM (in cartridge, switchable bank, if any)
+//  C000-CFFF 4KB Work RAM Bank 0 (WRAM)
+//  D000-DFFF 4KB Work RAM Bank 1 (WRAM) (switchable bank 1-7 in CGB Mode)
+//  E000-FDFF Same as C000-DDFF (ECHO) (typically not used)
+//  FE00-FE9F Sprite Attribute Table (OAM)
+//  FEA0-FEFF Not Usable
+//  FF00-FF7F I/O Ports
+//  FF80-FFFE High RAM (HRAM)
+//  FFFF Interrupt Enable Register
+int GB_write(GB *gb, WORD address, BYTE value)
+{
+    address &= 0xFFFF;
+    // Writing to RAM
+    if (address < 0x8000)
+    {
+        return 1;
+    }
+    // Writing to Echo RAM
+    else if (address >= 0xE000 && address < 0xFE00)
+    {
+        gb->memory[address] = value;
+        return (GB_write(gb, address - 0x2000, value));
+    }
+    // Writing to restricted memory
+    else if (address >= 0xFEA0 && address < 0xFEFF)
+    {
+        return 1;
+    }
+    gb->memory[address] = value;
+    return 0;
+}
 
+BYTE GB_read(GB *gb, WORD add)
+{
+    add &= 0xFFFF;
+    return gb->memory[add];
+}
 
+int get_file_size(FILE *file)
+{
+    fseek(file, 0, SEEK_END);
+    int size = ftell(file);
+    rewind(file);
+    return size;
+}
+
+void GB_load(GB *gb, const char *filename)
+{
+    FILE *rom = fopen(filename, "rb");
+    if (rom == NULL)
+    {
+        printf("Error: Could not open file %s", filename);
+        exit(1);
+    }
+
+    fread(gb->memory + 0x100, 1, 0x3FFF, rom);
+    fclose(rom);
+
+    // Check for MBC
+    switch (gb->memory[0x147])
+    {
+    case 0x01:
+    case 0x02:
+    case 0x03:
+        gb->game->MBC1 = true;
+        break;
+    case 0x05:
+    case 0x06:
+        gb->game->MBC2 = true;
+        break;
+    }
+}
