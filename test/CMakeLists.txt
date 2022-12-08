@@ -10,7 +10,7 @@ add_executable(${THIS} ${SOURCES})
 
 target_link_libraries(${THIS} PUBLIC
     gtest_main
-    GameboyEmulator
+    GB
 )
 
 add_test(

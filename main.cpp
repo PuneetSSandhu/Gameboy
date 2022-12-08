@@ -1,8 +1,9 @@
-#include "GB.cpp"
+#include "GB.hpp"
+#include <iostream>
 
 int main(int argc, char** argv)
 {
-    if(argc < 1)
+    if(argc < 2)
     {
         std::cout << "Usage: " << argv[0] << " <rom file>" << std::endl;
         return 1;
@@ -11,5 +12,6 @@ int main(int argc, char** argv)
     GB gb;
     GB_init(&gb);
     GB_load(&gb, rom_file);
+    GB_close(&gb);
     return 0;
 }

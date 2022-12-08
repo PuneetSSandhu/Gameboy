@@ -31,8 +31,11 @@ typedef union Register{
 typedef struct GameRom{
     bool MBC1;
     bool MBC2;
+    bool RAMEnable;
     BYTE curRomBank;
     BYTE romBanks;
+    BYTE curRamBank;
+    BYTE * CART;
 }Game;
 
 typedef struct GameBoy{
@@ -53,3 +56,4 @@ void GB_init(GB *gb);
 BYTE GB_read(GB *gb, WORD address);
 int GB_write(GB *gb, WORD address, BYTE value);
 void GB_load(GB *gb, const char *filename);
+void GB_close(GB *gb);

@@ -1,11 +1,11 @@
 cmake_minimum_required(VERSION 3.16)
-
-set(THIS GameboyEmulator)
+set(THIS GB)
 
 project(${THIS})
 
 set(CMAKE_CXX_STANDARD 99)
 set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_FLAGS "-g")
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 enable_testing()
@@ -20,6 +20,11 @@ set(Sources
     GB.cpp
     main.cpp
 )
+
+# copy the roms to the build directory
+file(COPY roms DESTINATION ${CMAKE_BINARY_DIR})
+
+add_executable(GameboyEmulator ${Sources} ${Headers})
 
 add_library(${THIS} STATIC ${Sources} ${Headers})
 
