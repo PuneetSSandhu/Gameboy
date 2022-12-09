@@ -27,11 +27,13 @@ struct ReadTests : public ::testing::Test {
 TEST_F(WriteTests, GB_write) {
     address = 0x1000; // ROM Address
     value = 0x10;
-    EXPECT_EQ(GB_write(&gb, address, value), 1);
+    EXPECT_EQ(GB_write(&gb, address, value), 0);
+    EXPECT_NE(gb.memory[address], value);
 
-    address = 0x0000; // ROM Address
+    address = 0x0000; // ROM Address to enable RAM
     value = 0x10;
-    EXPECT_EQ(GB_write(&gb, address, value), 1);
+    EXPECT_EQ(GB_write(&gb, address, value), 0);
+    EXPECT_NE(gb.memory[address], value);
 
     address = 0x8000; // VRAM Address
     value = 0x10;

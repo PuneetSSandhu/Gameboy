@@ -52,27 +52,21 @@ void GB_init(GB *gb)
     gb->game->MBC2 = false;
     gb->game->curRomBank = 1;
     gb->game->curRamBank = 0;
-    gb->game->CART = (BYTE *)malloc(ROM);
+    gb->game->RAMEnable = false;
+    memset(gb->game->ramBanks, 0, RAM_BANKS);
 }
 
-//  0000-3FFF 16KB ROM Bank 00 (in cartridge, fixed at bank 00)
-//  4000-7FFF 16KB ROM Bank 01..NN (in cartridge, switchable bank number 01-NN)
-//  8000-9FFF 8KB Video RAM (VRAM) (switchable bank 0-1 in CGB Mode)
-//  A000-BFFF 8KB External RAM (in cartridge, switchable bank, if any)
-//  C000-CFFF 4KB Work RAM Bank 0 (WRAM)
-//  D000-DFFF 4KB Work RAM Bank 1 (WRAM) (switchable bank 1-7 in CGB Mode)
-//  E000-FDFF Same as C000-DDFF (ECHO) (typically not used)
-//  FE00-FE9F Sprite Attribute Table (OAM)
-//  FEA0-FEFF Not Usable
-//  FF00-FF7F I/O Ports
-//  FF80-FFFE High RAM (HRAM)
-//  FFFF Interrupt Enable Register
 int GB_write(GB *gb, WORD address, BYTE value)
 {
     address &= 0xFFFF;
-    // RAM Enable
+    // External RAM Enable
     if (address < 0x1FFF)
-    {
+    {   
+        // check 4th bit for MBC2
+        if(address & 0x0008){
+          return 0;  
+        }
+
         if (value & 0x0F == 0x0A)
         {
             gb->game->RAMEnable = true;
@@ -81,25 +75,12 @@ int GB_write(GB *gb, WORD address, BYTE value)
         {
             gb->game->RAMEnable = false;
         }
+        return 0;
     }
     // ROM Bank Number
-    else if(address >= 0x2000 && address < 0x3FFF){
-        if (gb->game->MBC1)
-        {
-            gb->game->curRomBank = (gb->game->curRomBank & 0x60) | (value & 0x1F);
-            if (gb->game->curRomBank == 0x00 || gb->game->curRomBank == 0x20 || gb->game->curRomBank == 0x40 || gb->game->curRomBank == 0x60)
-            {
-                gb->game->curRomBank++;
-            }
-        }
-        else if (gb->game->MBC2)
-        {
-            gb->game->curRomBank = value & 0x0F;
-            if (gb->game->curRomBank == 0x00)
-            {
-                gb->game->curRomBank++;
-            }
-        }
+    else if (address >= 0x2000 && address < 0x3FFF)
+    {
+        return 0;
     }
     // Writing to ROM
     else if (address < 0x8000)
@@ -124,6 +105,16 @@ int GB_write(GB *gb, WORD address, BYTE value)
 BYTE GB_read(GB *gb, WORD add)
 {
     add &= 0xFFFF;
+    // Reading from ROM Banks
+    if (add >= 0x4000 && add < 0x8000)
+    {
+        return gb->game->gameROM[(add - 0x4000) + (gb->game->curRomBank * ROM_BANK_SIZE)];
+    }
+    // Reading from RAM Banks
+    else if (add >= 0xA000 && add < 0xC000)
+    {
+        return gb->game->ramBanks[(add - 0xA000) + (gb->game->curRamBank * RAM_BANK_SIZE)];
+    }
     return gb->memory[add];
 }
 
@@ -143,16 +134,15 @@ void GB_load(GB *gb, const char *filename)
         printf("Error: Could not open file %s", filename);
         exit(1);
     }
-    // Load the entire ROM into memory
-    if (gb->game->MBC1 || gb->game->MBC2)
-    {
-        int size = get_file_size(rom);
-        gb->game->CART = (BYTE *)malloc(size);
-        fread(gb->game->CART, 1, size, rom);
-    }
+
     fclose(rom);
-    // Load rom bank 00 into gb->memory[0000-3FFF]
-    memccpy(gb->memory, gb->game->CART, 0x4000, 0x4000);
+
+    // Load the game into memory
+    int size = get_file_size(rom);
+    gb->game->gameROM = (BYTE *)malloc(size);
+    fread(gb->game->gameROM, 1, size, rom);
+
+    // Copy the Game RAM into ramBanks
 
     // Check for MBC
     switch (gb->memory[0x147])
@@ -166,6 +156,8 @@ void GB_load(GB *gb, const char *filename)
     case 0x06:
         gb->game->MBC2 = true;
         break;
+    default:
+        break;
     }
 }
 
@@ -174,7 +166,6 @@ void GB_close(GB *gb)
     // Free the memory if it was allocated
     if (gb->game->MBC1 || gb->game->MBC2)
     {
-        free(gb->game->CART);
         free(gb->game);
     }
 }

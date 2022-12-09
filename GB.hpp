@@ -1,7 +1,9 @@
 // A gameboy emulator written in C++.
 
 #define MEMORY 0x10000
-#define ROM 0x8000
+#define RAM_BANKS 0x8000
+#define ROM_BANK_SIZE 0x4000
+#define RAM_BANK_SIZE 0x2000
 #define HEIGHT 144
 #define WIDTH 160
 #define MAX_SPRITES 40
@@ -33,10 +35,11 @@ typedef struct GameRom{
     bool MBC1;
     bool MBC2;
     bool RAMEnable;
+    bool ROMBanking;
     BYTE curRomBank;
-    BYTE romBanks;
+    BYTE ramBanks[0x8000]; // store all ram banks in game since there is a max of 4
     BYTE curRamBank;
-    BYTE * CART;
+    BYTE * gameROM;
 }Game;
 
 typedef struct GameBoy{
