@@ -21,8 +21,14 @@ set(Sources
     main.cpp
 )
 
-# copy the roms to the build directory
-file(COPY roms DESTINATION ${CMAKE_BINARY_DIR})
+
+# Make roms directory if it doesn't exist
+if (NOT EXISTS ${CMAKE_SOURCE_DIR}/roms)
+  file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/roms)
+  message("Created roms directory, please copy your roms into this directory and re-run cmake.")
+endif()
+
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/roms DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 add_executable(GameboyEmulator ${Sources} ${Headers})
 

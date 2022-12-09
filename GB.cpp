@@ -52,7 +52,7 @@ void GB_init(GB *gb)
     gb->game->MBC2 = false;
     gb->game->curRomBank = 1;
     gb->game->curRamBank = 0;
-    gb->game->CART = (BYTE *)malloc(0x8000);
+    gb->game->CART = (BYTE *)malloc(ROM);
 }
 
 //  0000-3FFF 16KB ROM Bank 00 (in cartridge, fixed at bank 00)

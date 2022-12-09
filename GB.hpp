@@ -1,6 +1,7 @@
 // A gameboy emulator written in C++.
 
 #define MEMORY 0x10000
+#define ROM 0x8000
 #define HEIGHT 144
 #define WIDTH 160
 #define MAX_SPRITES 40
@@ -44,7 +45,6 @@ typedef struct GameBoy{
     Register BC;
     Register DE;
     Register HL;
-
     WORD pc; // init to 0x100
     Register sp; // init to 0xFFFE
     BYTE memory[MEMORY];
