@@ -78,9 +78,50 @@ int GB_write(GB *gb, WORD address, BYTE value)
         return 0;
     }
     // ROM Bank Number
-    else if (address >= 0x2000 && address < 0x3FFF)
+    else if (address >= 0x2000 && address < 0x4000)
     {
-        return 0;
+        // Do ROM Bank Change
+        if(gb->game->MBC2){
+            gb->game->curRomBank = value & 0x0F;
+            // If the rom bank is 0, set it to 1
+            if (gb->game->curRomBank == 0)
+            {
+                gb->game->curRomBank++;
+            }
+            return;
+        }
+
+        // Do ROM Bank Change for MBC1
+        BYTE lower5Bits = value & 0x1F;
+        // keep the upper 3 bits of curRomBank
+        gb->game->curRomBank &= 0xE0;
+        // set the lower 5 bits of curRomBank
+        gb->game->curRomBank |= lower5Bits;
+        // If the rom bank is 0, set it to 1
+        if (gb->game->curRomBank == 0)
+        {
+            gb->game->curRomBank++;
+        }
+    }
+    else if(address >= 0x4000 && address < 0x6000){
+        // Do RAM Bank Change for MBC1
+        if(gb->game->MBC1){
+           // Set the upper 3 bits off curRomBank
+            gb->game->curRomBank &= 0x1F;
+
+            // turn off the lower 5 bits of value
+            value &= 0xE0;
+            // set the upper 3 bits of curRomBank
+            gb->game->curRomBank |= value;
+            // If the rom bank is 0, set it to 1
+            if (gb->game->curRomBank == 0)
+            {
+                gb->game->curRomBank++;
+            }
+        }
+        else{
+            gb->game->curRamBank = value & 0x03;
+        }
     }
     // Writing to ROM
     else if (address < 0x8000)
