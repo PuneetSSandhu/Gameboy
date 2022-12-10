@@ -11,13 +11,13 @@
 #define MAX_SPRITES_PER_LINE 10
 #define CLOCK_SPEED 4194304
 #define REFRESH_RATE 60
-#define CYCLES_PER_FRAME (CLOCK_SPEED / REFRESH_RATE)
-#define CYCLES_PER_LINE (CYCLES_PER_FRAME / HEIGHT)
-#define CYCLES_PER_PIXEL (CYCLES_PER_LINE / WIDTH)
 
+#define DIVIDER 0xFF04 // Timer Counter
 #define TIMA 0xFF05 // Timer Counter
 #define TMA 0xFF06 // Timer Modulator
 #define TMC 0xFF07 // Timer Control
+
+#define IF 0xFF0F // Interrupt Flag
 
 typedef unsigned char BYTE;
 typedef char SIGNED_BYTE;

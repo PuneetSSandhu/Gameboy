@@ -12,11 +12,11 @@ void update(GB *gb)
         // update the timers
         GB_updateTimers(gb, cycles);
         // update the graphics
-        GB_updateGraphics(gb, cycles);
-        // update the input
-        GB_updateInput(gb);
+        // GB_updateGraphics(gb, cycles);
+        // // update the input
+        // GB_updateInput(gb);
     }
-    GB_render(gb);
+    // GB_render(gb);
 }
 
 int main(int argc, char **argv)
@@ -31,7 +31,11 @@ int main(int argc, char **argv)
     GB_init(&gb);
     GB_load(&gb, rom_file);
 
+    // bool quit = false;
+    // while (!quit)
+    // {
     update(&gb);
+    // }
 
     GB_close(&gb);
     return 0;

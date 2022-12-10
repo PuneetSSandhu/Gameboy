@@ -2,6 +2,9 @@
 #include <string.h>
 #include "GB.hpp"
 
+int timerCounter;
+int divCounter;
+
 void GB_init(GB *gb)
 {
     // Initialize the registers
@@ -53,7 +56,14 @@ void GB_init(GB *gb)
     gb->game->curRamBank = 0;
     gb->game->RAMEnable = false;
     memset(gb->game->ramBanks, 0, RAM_BANKS);
+
+    // Set frequency to 1024Hz
+    gb->memory[TMC] = 0x04;
+    timerCounter = 1024;
+    divCounter = 0;
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void GB_write(GB *gb, WORD address, BYTE value)
 {
@@ -175,6 +185,8 @@ void GB_write(GB *gb, WORD address, BYTE value)
     return;
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 BYTE GB_read(GB *gb, WORD add)
 {
     add &= 0xFFFF;
@@ -190,6 +202,8 @@ BYTE GB_read(GB *gb, WORD add)
     }
     return gb->memory[add];
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void GB_load(GB *gb, const char *filename)
 {
@@ -222,6 +236,66 @@ void GB_load(GB *gb, const char *filename)
         break;
     }
 }
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void getFreq(GB *gb)
+{
+    int freq = GB_read(gb, TMC) & 0x03;
+    switch (freq)
+    {
+    case 0:
+        timerCounter = CLOCK_SPEED / 1024;
+    case 1:
+        timerCounter = CLOCK_SPEED / 16;
+    case 2:
+        timerCounter = CLOCK_SPEED / 64;
+    case 3:
+        timerCounter = CLOCK_SPEED / 256;
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void GB_updateTimers(GB *gb, int cycles)
+{
+    // update the divider counter
+    divCounter += cycles;
+    if (divCounter >= 256)
+    {
+        gb->memory[DIVIDER] += 1;
+        divCounter = 0;
+    }
+
+    // update the timer counter
+    timerCounter -= cycles;
+
+    if (timerCounter <= 0)
+    {
+        getFreq(gb);
+        if (GB_read(gb, TMC) & 0x04) // check if timer is enabled
+        {
+            if (GB_read(gb, TIMA) == 255)
+            {
+                GB_write(gb, TIMA, GB_read(gb, TMA));
+                GB_write(gb, IF, GB_read(gb, IF) | 0x04); // Request interrupt for timer
+            }
+            else
+            {
+                GB_write(gb, TIMA, GB_read(gb, TIMA) + 1);
+            }
+        }
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// TODO: Implement OPCODES
+int GB_step(GB *gb)
+{
+    return 1;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void GB_close(GB *gb)
 {
