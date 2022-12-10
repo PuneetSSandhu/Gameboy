@@ -48,40 +48,44 @@ void GB_init(GB *gb)
 
     // Initialize the game struct
     gb->game = new Game;
-    gb->game->MBC1 = false;
-    gb->game->MBC2 = false;
+    gb->game->MBC = 0;
     gb->game->curRomBank = 1;
     gb->game->curRamBank = 0;
     gb->game->RAMEnable = false;
     memset(gb->game->ramBanks, 0, RAM_BANKS);
 }
 
-int GB_write(GB *gb, WORD address, BYTE value)
+void GB_write(GB *gb, WORD address, BYTE value)
 {
-    address &= 0xFFFF;
+
     // External RAM Enable
     if (address < 0x1FFF)
-    {   
-        // check 4th bit for MBC2
-        if(address & 0x0008){
-          return 0;  
-        }
+    {
+        if (gb->game->MBC)
+        {
+            // check 4th bit for MBC2
+            if (gb->game->MBC == MBC2 && (address & 0x0008))
+            {
+                return;
+            }
 
-        if (value & 0x0F == 0x0A)
-        {
-            gb->game->RAMEnable = true;
+            if ((value & 0xF) == 0xA)
+            {
+                gb->game->RAMEnable = true;
+            }
+            else
+            {
+                gb->game->RAMEnable = false;
+            }
         }
-        else
-        {
-            gb->game->RAMEnable = false;
-        }
-        return 0;
+        return;
     }
     // ROM Bank Number
     else if (address >= 0x2000 && address < 0x4000)
     {
         // Do ROM Bank Change
-        if(gb->game->MBC2){
+        if (gb->game->MBC == MBC2)
+        {
             gb->game->curRomBank = value & 0x0F;
             // If the rom bank is 0, set it to 1
             if (gb->game->curRomBank == 0)
@@ -90,57 +94,85 @@ int GB_write(GB *gb, WORD address, BYTE value)
             }
             return;
         }
-
-        // Do ROM Bank Change for MBC1
-        BYTE lower5Bits = value & 0x1F;
-        // keep the upper 3 bits of curRomBank
-        gb->game->curRomBank &= 0xE0;
-        // set the lower 5 bits of curRomBank
-        gb->game->curRomBank |= lower5Bits;
-        // If the rom bank is 0, set it to 1
-        if (gb->game->curRomBank == 0)
+        else if (gb->game->MBC == MBC1)
         {
-            gb->game->curRomBank++;
-        }
-    }
-    else if(address >= 0x4000 && address < 0x6000){
-        // Do RAM Bank Change for MBC1
-        if(gb->game->MBC1){
-           // Set the upper 3 bits off curRomBank
-            gb->game->curRomBank &= 0x1F;
-
-            // turn off the lower 5 bits of value
-            value &= 0xE0;
-            // set the upper 3 bits of curRomBank
-            gb->game->curRomBank |= value;
+            // Do ROM Bank Change for MBC1
+            BYTE lower5Bits = value & 0x1F;
+            // keep the upper 3 bits of curRomBank
+            gb->game->curRomBank &= 0xE0;
+            // set the lower 5 bits of curRomBank
+            gb->game->curRomBank |= lower5Bits;
             // If the rom bank is 0, set it to 1
             if (gb->game->curRomBank == 0)
             {
                 gb->game->curRomBank++;
             }
         }
-        else{
-            gb->game->curRamBank = value & 0x03;
+        // do nothing for no MBC
+    }
+    else if (address >= 0x4000 && address < 0x6000)
+    {
+        // Do RAM Bank Change for MBC1
+        if (gb->game->MBC == MBC1)
+        {
+            if (gb->game->ROMBanking) // HiRomBanking
+            {
+                // Set the upper 3 bits off curRomBank
+                gb->game->curRomBank &= 0x1F;
+
+                // turn off the lower 5 bits of value
+                value &= 0xE0;
+                // set the upper 3 bits of curRomBank
+                gb->game->curRomBank |= value;
+                // If the rom bank is 0, set it to 1
+                if (gb->game->curRomBank == 0)
+                {
+                    gb->game->curRomBank++;
+                }
+            }
+            else // Ram bank change
+            {
+                gb->game->curRamBank = value & 0x03;
+            }
         }
     }
-    // Writing to ROM
-    else if (address < 0x8000)
+    else if (address >= 6000 && address < 0x8000)
     {
-        return 1;
+        // Set ROM/RAM Banking Mode
+        if (gb->game->MBC == MBC1)
+        {
+            if (value & 0x01)
+            {
+                gb->game->ROMBanking = false;
+            }
+            else
+            {
+                gb->game->ROMBanking = true;
+                gb->game->curRamBank = 0;
+            }
+        }
     }
     // Writing to Echo RAM
     else if (gb->game->RAMEnable && address >= 0xE000 && address < 0xFE00)
     {
         gb->memory[address] = value;
-        return (GB_write(gb, address - 0x2000, value));
+        GB_write(gb, address - 0x2000, value);
+        return;
+    }
+    // Writing to RAM
+    else if (gb->game->RAMEnable && address >= 0xA000 && address < 0xC000)
+    {
+        gb->memory[address] = value;
+        GB_write(gb, address + 0x2000, value);
+        return;
     }
     // Writing to restricted memory
     else if (address >= 0xFEA0 && address < 0xFEFF)
     {
-        return 1;
+        return;
     }
     gb->memory[address] = value;
-    return 0;
+    return;
 }
 
 BYTE GB_read(GB *gb, WORD add)
@@ -159,14 +191,6 @@ BYTE GB_read(GB *gb, WORD add)
     return gb->memory[add];
 }
 
-int get_file_size(FILE *file)
-{
-    fseek(file, 0, SEEK_END);
-    int size = ftell(file);
-    rewind(file);
-    return size;
-}
-
 void GB_load(GB *gb, const char *filename)
 {
     FILE *rom = fopen(filename, "rb");
@@ -176,28 +200,25 @@ void GB_load(GB *gb, const char *filename)
         exit(1);
     }
 
+    fread(gb->game->gameROM, 1, CART_SIZE, rom);
+
     fclose(rom);
 
-    // Load the game into memory
-    int size = get_file_size(rom);
-    gb->game->gameROM = (BYTE *)malloc(size);
-    fread(gb->game->gameROM, 1, size, rom);
-
-    // Copy the Game RAM into ramBanks
-
+    std::cout << gb->game->gameROM[0x147] << std::endl;
     // Check for MBC
-    switch (gb->memory[0x147])
+    switch (gb->game->gameROM[0x147])
     {
     case 0x01:
     case 0x02:
     case 0x03:
-        gb->game->MBC1 = true;
+        gb->game->MBC = MBC1;
         break;
     case 0x05:
     case 0x06:
-        gb->game->MBC2 = true;
+        gb->game->MBC = MBC2;
         break;
     default:
+        gb->game->MBC = MBC_NONE;
         break;
     }
 }
@@ -205,7 +226,7 @@ void GB_load(GB *gb, const char *filename)
 void GB_close(GB *gb)
 {
     // Free the memory if it was allocated
-    if (gb->game->MBC1 || gb->game->MBC2)
+    if (gb->game->MBC)
     {
         free(gb->game);
     }
