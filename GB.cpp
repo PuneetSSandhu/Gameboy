@@ -8,11 +8,11 @@ int divCounter;
 void GB_init(GB *gb)
 {
     // Initialize the registers
-    gb->AF.word = 0x01B0;
-    gb->BC.word = 0x0013;
-    gb->DE.word = 0x00D8;
-    gb->HL.word = 0x014D;
-    gb->sp.word = 0xFFFE;
+    gb->AF = 0x01B0;
+    gb->BC = 0x0013;
+    gb->DE = 0x00D8;
+    gb->HL = 0x014D;
+    gb->sp = 0xFFFE;
     gb->pc = 0x0100;
 
     // Initialize the memory
@@ -289,6 +289,105 @@ void GB_updateTimers(GB *gb, int cycles)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void GB_updateInterrupt(GB *gb)
+{
+    // check IE
+    BYTE Ienable = GB_read(gb, IE);
+    // check if any interrupts are enabled
+    if (Ienable == 0x00)
+    {
+        return;
+    }
+    // check IF
+    BYTE Iflags = GB_read(gb, IF);
+
+    // check if any interrupts are requested
+    if (Iflags == 0x00)
+    {
+        return;
+    }
+
+    // check if any interrupts are enabled and requested
+    if ((Ienable & Iflags) == 0x00)
+    {
+        return;
+    }
+
+    // VBlank Interrupt
+    if ((Ienable & 0x01) & (Iflags & 0x01))
+    {
+        // disable the interrupt
+        GB_write(gb, IE, Ienable & 0xFE);
+        // disable the interrupt flag
+        GB_write(gb, IF, Iflags & 0xFE);
+        // push the current PC to the stack
+        GB_write(gb, gb->sp - 1, gb->pc >> 8);
+        GB_write(gb, gb->sp - 2, gb->pc & 0xFF);
+        gb->sp -= 2;
+        // set the PC to the VBlank interrupt vector
+        gb->pc = 0x0040;
+    }
+    // STAT interrupt
+    if ((Ienable & 0x02) & (Iflags & 0x02))
+    {
+        // disable the interrupt
+        GB_write(gb, IE, Ienable & 0xFD);
+        // disable the interrupt flag
+        GB_write(gb, IF, Iflags & 0xFD);
+        // push the current PC to the stack
+        GB_write(gb, gb->sp - 1, gb->pc >> 8);
+        GB_write(gb, gb->sp - 2, gb->pc & 0xFF);
+        gb->sp -= 2;
+        // set the PC to the STAT interrupt vector
+        gb->pc = 0x0048;
+    }
+
+    // Timer interrupt
+    if ((Ienable & 0x04) & (Iflags & 0x04))
+    {
+        // disable the interrupt
+        GB_write(gb, IE, Ienable & 0xFB);
+        // disable the interrupt flag
+        GB_write(gb, IF, Iflags & 0xFB);
+        // push the current PC to the stack
+        GB_write(gb, gb->sp - 1, gb->pc >> 8);
+        GB_write(gb, gb->sp - 2, gb->pc & 0xFF);
+        gb->sp -= 2;
+        // set the PC to the Timer interrupt vector
+        gb->pc = 0x0050;
+    }
+    // Serial interrupt
+    if ((Ienable & 0x08) & (Iflags & 0x08))
+    {
+        // disable the interrupt
+        GB_write(gb, IE, Ienable & 0xF7);
+        // disable the interrupt flag
+        GB_write(gb, IF, Iflags & 0xF7);
+        // push the current PC to the stack
+        GB_write(gb, gb->sp - 1, gb->pc >> 8);
+        GB_write(gb, gb->sp - 2, gb->pc & 0xFF);
+        gb->sp -= 2;
+        // set the PC to the Serial interrupt vector
+        gb->pc = 0x0058;
+    }
+
+    // Joypad interrupt
+    if ((Ienable & 0x10) & (Iflags & 0x10))
+    {
+        // disable the interrupt
+        GB_write(gb, IE, Ienable & 0xEF);
+        // disable the interrupt flag
+        GB_write(gb, IF, Iflags & 0xEF);
+        // push the current PC to the stack
+        GB_write(gb, gb->sp - 1, gb->pc >> 8);
+        GB_write(gb, gb->sp - 2, gb->pc & 0xFF);
+        gb->sp -= 2;
+        // set the PC to the Joypad interrupt vector
+        gb->pc = 0x0060;
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // TODO: Implement OPCODES
 int GB_step(GB *gb)
 {

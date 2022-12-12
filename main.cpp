@@ -15,6 +15,8 @@ void update(GB *gb)
         // GB_updateGraphics(gb, cycles);
         // // update the input
         // GB_updateInput(gb);
+        // update interrupts
+        // GB_updateInterrupts(gb);
     }
     // GB_render(gb);
 }

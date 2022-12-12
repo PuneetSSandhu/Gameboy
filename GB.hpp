@@ -13,11 +13,12 @@
 #define REFRESH_RATE 60
 
 #define DIVIDER 0xFF04 // Timer Counter
-#define TIMA 0xFF05 // Timer Counter
-#define TMA 0xFF06 // Timer Modulator
-#define TMC 0xFF07 // Timer Control
+#define TIMA 0xFF05    // Timer Counter
+#define TMA 0xFF06     // Timer Modulator
+#define TMC 0xFF07     // Timer Control
 
 #define IF 0xFF0F // Interrupt Flag
+#define IE 0xFFFF // Interrupt Enable
 
 typedef unsigned char BYTE;
 typedef char SIGNED_BYTE;
@@ -43,6 +44,70 @@ typedef union Register
         BYTE high;
     };
     WORD word;
+
+    // Overload operator =
+    void operator=(WORD value)
+    {
+        this->word = value;
+    }
+
+    // Overload operators + and - with int
+    Register operator+(int value)
+    {
+        Register reg;
+        reg.word = this->word + value;
+        return reg;
+    }
+
+    Register operator-(int value)
+    {
+        Register reg;
+        reg.word = this->word - value;
+        return reg;
+    }
+
+    // Overload operators + and - with Register
+    Register operator+(Register value)
+    {
+        Register reg;
+        reg.word = this->word + value.word;
+        return reg;
+    }
+
+    Register operator-(Register value)
+    {
+        Register reg;
+        reg.word = this->word - value.word;
+        return reg;
+    }
+
+    // Overload operators += and -= with int
+    void operator+=(int value)
+    {
+        this->word += value;
+    }
+
+    void operator-=(int value)
+    {
+        this->word -= value;
+    }
+
+    // Overload operators += and -= with Register
+    void operator+=(Register value)
+    {
+        this->word += value.word;
+    }
+
+    void operator-=(Register value)
+    {
+        this->word -= value.word;
+    }
+
+    // convert to word
+    operator WORD() const
+    {
+        return this->word;
+    }
 } Register;
 
 typedef struct GameRom
@@ -79,3 +144,4 @@ void GB_updateTimers(GB *gb, int cycles);
 void GB_updateGraphics(GB *gb, int cycles);
 void GB_updateInput(GB *gb);
 void GB_render(GB *gb);
+void GB_updateInterrupts(GB *gb);
