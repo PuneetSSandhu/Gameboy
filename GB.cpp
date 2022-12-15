@@ -4,6 +4,7 @@
 
 int timerCounter;
 int divCounter;
+int scanlineCounter;
 
 void GB_init(GB *gb)
 {
@@ -210,7 +211,7 @@ void GB_load(GB *gb, const char *filename)
     FILE *rom = fopen(filename, "rb");
     if (rom == NULL)
     {
-        printf("Error: Could not open file %s", filename);
+        std::cout << "Error opening file " << filename << std::endl;
         exit(1);
     }
 
@@ -286,6 +287,39 @@ void GB_updateTimers(GB *gb, int cycles)
         }
     }
 }
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// 00: H-Blank
+// 01: V-Blank
+// 10: Searching Sprites Atts
+// 11: Transferring Data to LCD Driver 
+void LCD_status(GB * gb){
+    // Get the current status
+    BYTE status = GB_read(gb, 0xFF41);
+
+    // Get LCD enable
+    bool LCDenable = (GB_read(gb, 0xFF40) >> 7) & 0x01;
+
+    // if the LCD is not enables 
+    if(!LCDenable){
+        
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void GB_updateGraphics(GB * gb, int cycles){
+    // Set the LCD status
+
+    // Check if the LCD is enabled
+    BYTE LCDEnable = GB_read(gb, 0xFF40);
+
+    if((LCDEnable >> 7) & 0x01){
+        scanlineCounter -= cycles;
+    }
+    else{
+        return;
+    }
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -327,6 +361,7 @@ void GB_updateInterrupt(GB *gb)
         // set the PC to the VBlank interrupt vector
         gb->pc = 0x0040;
     }
+
     // STAT interrupt
     if ((Ienable & 0x02) & (Iflags & 0x02))
     {

@@ -9,6 +9,8 @@ set(CMAKE_CXX_FLAGS "-g")
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 enable_testing()
+find_package(SDL2 REQUIRED)
+include_directories(${SDL2_INCLUDE_DIRS})
 
 add_subdirectory(googletest)
 
@@ -34,7 +36,10 @@ add_executable(GameboyEmulator ${Sources} ${Headers})
 
 add_library(${THIS} STATIC ${Sources} ${Headers})
 
+target_link_libraries(GameboyEmulator ${SDL2_LIBRARIES})
+
 add_subdirectory(test)
+
 
 # --- auto-ignore build directory
 if(NOT EXISTS ${PROJECT_BINARY_DIR}/.gitignore)
