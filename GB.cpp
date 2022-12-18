@@ -291,32 +291,39 @@ void GB_updateTimers(GB *gb, int cycles)
 // 00: H-Blank
 // 01: V-Blank
 // 10: Searching Sprites Atts
-// 11: Transferring Data to LCD Driver 
-void LCD_status(GB * gb){
+// 11: Transferring Data to LCD Driver
+void LCD_status(GB *gb)
+{
     // Get the current status
     BYTE status = GB_read(gb, 0xFF41);
 
     // Get LCD enable
-    bool LCDenable = (GB_read(gb, 0xFF40) >> 7) & 0x01;
+    bool LCDEnable = (GB_read(gb, 0xFF40) >> 7) & 0x01;
 
-    // if the LCD is not enables 
-    if(!LCDenable){
-        
-    }
+    // if the LCD is not enabled
+    if (!LCDEnable)
+    {
+        // set the mode as 1
+        // reset the scanline counter
+        scanlineCounter = 456;
+        }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void GB_updateGraphics(GB * gb, int cycles){
+// TODO: Implement all LCD register behaviour
+void GB_updateGraphics(GB *gb, int cycles)
+{
     // Set the LCD status
 
     // Check if the LCD is enabled
     BYTE LCDEnable = GB_read(gb, 0xFF40);
 
-    if((LCDEnable >> 7) & 0x01){
+    if ((LCDEnable >> 7) & 0x01)
+    {
         scanlineCounter -= cycles;
     }
-    else{
+    else
+    {
         return;
     }
 }
