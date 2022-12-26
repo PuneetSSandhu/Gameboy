@@ -91,6 +91,22 @@ void GB_write(GB *gb, WORD address, BYTE value)
         }
         return;
     }
+    // Reset the scanline
+    else if (address == 0xFF44)
+    {
+        gb->memory[address] = 0;
+    }
+    // DMA transfer
+    else if (address == 0xFF46)
+    {
+        // Get the address to copy from
+        WORD copyAddress = value << 8;
+        // Copy 160 bytes from copyAddress to OAM
+        for (int i = 0; i < 160; i++)
+        {
+            gb->memory[0xFE00 + i] = gb->memory[copyAddress + i];
+        }
+    }
     // ROM Bank Number
     else if (address >= 0x2000 && address < 0x4000)
     {
@@ -303,28 +319,107 @@ void LCD_status(GB *gb)
     // if the LCD is not enabled
     if (!LCDEnable)
     {
-        // set the mode as 1
+        // set the mode as 1 (H-Blank)
+        status = (status & ~0x03) | 0x00;
+
         // reset the scanline counter
         scanlineCounter = 456;
+    }
+    else
+    {
+        // check the current scanline counter value
+        if (scanlineCounter >= 0)
+        {
+            // if the scanline counter is positive, we are in mode 3 (searching sprites) or mode 0 (H-Blank)
+            if (scanlineCounter > 0)
+            {
+                // set the mode as 2 (searching sprites)
+                status = (status & ~0x03) | 0x02;
+            }
+            else
+            {
+                // set the mode as 0 (H-Blank)
+                status = (status & ~0x03) | 0x00;
+            }
         }
+        else
+        {
+            // if the scanline counter is negative, we are in mode 1 (V-Blank) or mode 2 (transferring data to LCD driver)
+            if (scanlineCounter >= -456)
+            {
+                // set the mode as 1 (V-Blank)
+                status = (status & ~0x03) | 0x01;
+            }
+            else
+            {
+                // set the mode as 3 (transferring data to LCD driver)
+                status = (status & ~0x03) | 0x03;
+            }
+        }
+    }
+
+    // write the updated status back to the LCDC register
+    GB_write(gb, 0xFF41, status);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// LCD Control Register (LCDC) (R/W)
+
+// Bit 7 - LCD Display Enable (0=Off, 1=On)
+// Bit 6 - Window Tile Map Display Select (0=9800-9BFF, 1=9C00-9FFF)
+// Bit 5 - Window Display Enable (0=Off, 1=On)
+// Bit 4 - BG & Window Tile Data Select (0=8800-97FF, 1=8000-8FFF)
+// Bit 3 - BG Tile Map Display Select (0=9800-9BFF, 1=9C00-9FFF)
+// Bit 2 - OBJ (Sprite) Size (0=8x8, 1=8x16)
+// Bit 1 - OBJ (Sprite) Display Enable (0=Off, 1=On)
+// Bit 0 - BG Display (for CGB see below) (0=Off, 1=On)
+void drawScanline(GB *gb)
+{
+    // TODO: Implement all LCD register behaviour
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 // TODO: Implement all LCD register behaviour
 void GB_updateGraphics(GB *gb, int cycles)
 {
-    // Set the LCD status
+    LCD_status(gb);
 
     // Check if the LCD is enabled
     BYTE LCDEnable = GB_read(gb, 0xFF40);
 
     if ((LCDEnable >> 7) & 0x01)
     {
+        // Decrement the scanline counter by the number of cycles that have elapsed
         scanlineCounter -= cycles;
     }
     else
     {
         return;
+    }
+
+    // Check the current value of the scanline counter
+    if (scanlineCounter <= 0)
+    {
+        GB_write(gb, 0xFF44, GB_read(gb, 0xFF44) + 1);
+        BYTE curScanLine = GB_read(gb, 0xFF44);
+
+        // Check if we have reached the end of the screen
+        if (curScanLine == 144)
+        {
+            // Request interrupt for V-Blank
+            GB_write(gb, IF, GB_read(gb, IF) | 0x01);
+        }
+
+        else if (curScanLine > 153)
+        {
+            GB_write(gb, 0xFF44, 0);
+        }
+
+        else if (curScanLine < 144)
+        {
+            // TODO: Draw the current scanline
+        }
     }
 }
 
